@@ -30,7 +30,10 @@ export default function MovieDetailPage({ movie, movies, status, onSetStatus }: 
 
   const recommendations = useMemo(() => {
     if (!movie) return []
-    const preferred = movie.similarMovieIds?.map((id) => movies.find((item) => item.id === id)).filter((item): item is MovieDetail => Boolean(item)) ?? []
+    const apiPreferred = movie.similarMovies ?? []
+    const preferred = apiPreferred.length
+      ? apiPreferred
+      : movie.similarMovieIds?.map((id) => movies.find((item) => item.id === id)).filter((item): item is MovieDetail => Boolean(item)) ?? []
     const genres = movie.genre.toLowerCase().split(' · ').filter(Boolean)
     const byGenre = movies.filter((item) => item.id !== movie.id && item.genre.toLowerCase().split(' · ').some((genre) => genres.includes(genre)))
     return [...preferred, ...byGenre.filter((item) => !preferred.some((match) => match.id === item.id))].slice(0, 4)

@@ -37,6 +37,7 @@ export interface MovieDetail extends Movie {
   cast?: CastMember[]
   gallery?: string[]
   similarMovieIds?: string[]
+  similarMovies?: Movie[]
 }
 
 export interface Profile {

@@ -7,7 +7,9 @@ export const initialProfile: Profile = {
   username: 'alexmorgan',
   bio: 'Collecting stories that stay with you. Usually somewhere between sci-fi and slow cinema.',
   isPublic: true,
-  avatar: photo('photo-1534528741775-53994a69daeb', 240),
+  avatar: 'https://placewaifu.com/image/200',
+  // avatar: 'https://i.pravatar.cc/300',
+  // avatar: photo('photo-1534528741775-53994a69daeb', 240),
   cover: photo('photo-1519608487953-e999c86e7455', 1600),
 }
 

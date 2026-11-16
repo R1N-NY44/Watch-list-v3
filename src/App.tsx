@@ -8,19 +8,44 @@ import MovieDetailPage from './Pages/MovieDetailPage'
 import { movieRepository } from './services/movieRepository'
 import { useCollection } from './lib/collectionStore'
 import SearchModal from './components/SearchModal'
+import AuthPage from './Pages/AuthPage'
+import { useAuth } from './lib/authStore'
+import type { MovieDetail } from './types/movie'
+import { collectionKeyFor } from './data/tmdbIds'
 
 export default function App() {
+  const bootstrap = useAuth((state) => state.bootstrap)
+  const accessToken = useAuth((state) => state.accessToken)
+  const hydrateCollection = useCollection((state) => state.hydrate)
+  useEffect(() => { void bootstrap() }, [bootstrap])
+  useEffect(() => { void hydrateCollection(accessToken) }, [accessToken, hydrateCollection])
   return (
     <>
     <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/u/:username" element={<Profile />} />
+      <Route path="/login" element={<AuthPage mode="login" />} />
+      <Route path="/register" element={<AuthPage mode="register" />} />
       <Route path="/movie/:movieId" element={<MovieDetailRoute />} />
       <Route path="*" element={<Home />} />
     </Routes>
     <SearchModalController />
+    <ApiErrorNotice />
     </>
   )
+}
+
+function ApiErrorNotice() {
+  const [message, setMessage] = useState('')
+  useEffect(() => {
+    const onError = (event: Event) => {
+      setMessage((event as CustomEvent<string>).detail || 'The API request failed.')
+      window.setTimeout(() => setMessage(''), 3600)
+    }
+    window.addEventListener('api-error', onError)
+    return () => window.removeEventListener('api-error', onError)
+  }, [])
+  return message ? <div className="toast api-error-toast" role="status">{message}</div> : null
 }
 
 function SearchModalController() {
@@ -46,14 +71,21 @@ function SearchModalController() {
 
 function MovieDetailRoute() {
   const { movieId = '' } = useParams()
-  const movie = movieRepository.getById(movieId)
+  const [movie, setMovie] = useState<MovieDetail | undefined>()
+  const [loading, setLoading] = useState(true)
+  useEffect(() => {
+    let active = true
+    setLoading(true)
+    void movieRepository.getByIdAsync(movieId).then((result) => { if (active) setMovie(result) }).finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [movieId])
   const movies = movieRepository.getAll()
   const { collection, setStatus } = useCollection()
 
   return (
     <div className="app-shell">
       <Header />
-      <MovieDetailPage movie={movie} movies={movies} status={movie ? collection[movie.id] : undefined} onSetStatus={setStatus} />
+      {loading ? <main className="detail-not-found"><span className="eyebrow">THE ARCHIVE</span><h1>Finding the<br/><em>right frame…</em></h1></main> : <MovieDetailPage movie={movie} movies={movies} status={movie ? collection[collectionKeyFor(movie.id)] : undefined} onSetStatus={(id, status) => setStatus(id, status, movie)} />}
       <Footer />
     </div>
   )
