@@ -306,8 +306,8 @@
 .auth-switch{margin-top:23px;padding-top:17px;border-top:1px solid rgba(255,255,255,.08);color:#9395a1;text-align:center;font-size:10px}
 .auth-switch a{margin-left:4px;color:#ffaaaa}
 .api-error-toast{z-index:140;border-color:rgba(255,107,107,.35);background:#241519;color:#ffc1c1}
-.api-profile-cover{background-image:radial-gradient(ellipse at 75% 30%,rgba(255,107,107,.3),transparent 42%),linear-gradient(120deg,#171922,#0b0c12 72%)}
-.api-profile-avatar{display:grid;place-items:center;background:linear-gradient(145deg,#38303c,#171820);color:#ffb1b1;font-size:34px;font-weight:500}
+.api-profile-cover{background-size:cover;background-position:center 43%;}
+.api-profile-avatar{display:block;object-fit:cover;background:#171820}
 .detail-hero-inner {
   grid-template-columns: minmax(170px, 232px) minmax(0, 1fr);
   gap: clamp(32px, 6vw, 84px);

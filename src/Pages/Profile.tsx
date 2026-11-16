@@ -9,6 +9,7 @@ import { useAuth } from '../lib/authStore'
 import { useCollection } from '../lib/collectionStore'
 import { profileApi } from '../services/profileApi'
 import type { Movie, Status } from '../types/movie'
+import { defaultProfileAvatar, defaultProfileBanner } from '../data/profileAppearance'
 
 type ProfileMovie = { movie: Movie; status: Status }
 
@@ -75,9 +76,9 @@ export default function Profile() {
     <Header />
     <main className="profile-page">
       <button className="back-link" onClick={() => navigate('/')}><ArrowLeft size={15} /> Back to discovery</button>
-      <section className="profile-cover api-profile-cover"><span className="cover-label">A PERSONAL FILM ARCHIVE</span></section>
+      <section className="profile-cover api-profile-cover" style={{ backgroundImage: `linear-gradient(90deg, rgba(8,9,13,.72), rgba(8,9,13,.08)), url("${defaultProfileBanner}")` }}><span className="cover-label">A PERSONAL FILM ARCHIVE</span></section>
       <section className="profile-intro">
-        <div className="profile-avatar api-profile-avatar" aria-hidden="true">{name.slice(0, 1).toUpperCase() || '•'}</div>
+        <img className="profile-avatar api-profile-avatar" src={defaultProfileAvatar} alt="" />
         <div className="profile-identity"><div className="identity-top"><h1>{name || 'Film archive'}</h1><span className="public-tag"><Globe2 size={12} /> API PROFILE</span></div><span className="username">MEMBER ID · {publicId.slice(0, 8)}</span><p>{isOwner ? 'Your collection, synced with the Watch List API.' : 'A film collection shared through Watch List.'}</p><span className="joined">WATCH LIST MEMBER</span></div>
         <div className="profile-actions"><button className="button button-outline" onClick={share}><Share2 size={15} /> Share profile</button></div>
       </section>
