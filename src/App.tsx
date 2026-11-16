@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Route, Routes, useParams } from 'react-router-dom'
+import { Route, Routes, useNavigate, useParams } from 'react-router-dom'
 import Header from './components/Header'
 import Footer from './components/Footer'
 import Home from './Pages/Home'
@@ -11,7 +11,6 @@ import SearchModal from './components/SearchModal'
 import AuthPage from './Pages/AuthPage'
 import { useAuth } from './lib/authStore'
 import type { MovieDetail } from './types/movie'
-import { collectionKeyFor } from './data/tmdbIds'
 
 export default function App() {
   const bootstrap = useAuth((state) => state.bootstrap)
@@ -31,6 +30,7 @@ export default function App() {
     </Routes>
     <SearchModalController />
     <ApiErrorNotice />
+    <AuthRequiredRedirect />
     </>
   )
 }
@@ -46,6 +46,16 @@ function ApiErrorNotice() {
     return () => window.removeEventListener('api-error', onError)
   }, [])
   return message ? <div className="toast api-error-toast" role="status">{message}</div> : null
+}
+
+function AuthRequiredRedirect() {
+  const navigate = useNavigate()
+  useEffect(() => {
+    const redirect = () => navigate('/login')
+    window.addEventListener('auth-required', redirect)
+    return () => window.removeEventListener('auth-required', redirect)
+  }, [navigate])
+  return null
 }
 
 function SearchModalController() {
@@ -73,19 +83,20 @@ function MovieDetailRoute() {
   const { movieId = '' } = useParams()
   const [movie, setMovie] = useState<MovieDetail | undefined>()
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   useEffect(() => {
     let active = true
     setLoading(true)
-    void movieRepository.getByIdAsync(movieId).then((result) => { if (active) setMovie(result) }).finally(() => { if (active) setLoading(false) })
+    setError('')
+    void movieRepository.getById(movieId).then((result) => { if (active) setMovie(result) }).catch((cause) => { if (active) { setMovie(undefined); setError(cause instanceof Error ? cause.message : 'Could not load this film.') } }).finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   }, [movieId])
-  const movies = movieRepository.getAll()
   const { collection, setStatus } = useCollection()
 
   return (
     <div className="app-shell">
       <Header />
-      {loading ? <main className="detail-not-found"><span className="eyebrow">THE ARCHIVE</span><h1>Finding the<br/><em>right frame…</em></h1></main> : <MovieDetailPage movie={movie} movies={movies} status={movie ? collection[collectionKeyFor(movie.id)] : undefined} onSetStatus={(id, status) => setStatus(id, status, movie)} />}
+      {loading ? <main className="detail-not-found"><span className="eyebrow">THE ARCHIVE</span><h1>Finding the<br/><em>right frame…</em></h1></main> : error ? <main className="detail-not-found"><span className="eyebrow">THE ARCHIVE / API</span><h1>Unable to load<br/><em>this film.</em></h1><p>{error}</p></main> : <MovieDetailPage movie={movie} status={movie ? collection[movie.id] : undefined} onSetStatus={(id, status) => setStatus(id, status, movie)} />}
       <Footer />
     </div>
   )

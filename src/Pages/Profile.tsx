@@ -1,284 +1,94 @@
-import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
-import { AnimatePresence, motion } from "framer-motion";
-import {
-  ArrowLeft,
-  ArrowRight,
-  Check,
-  Film,
-  Globe2,
-  LockKeyhole,
-  Settings2,
-  Share2,
-} from "lucide-react";
-import Header from "../components/Header";
-import Footer from "../components/Footer";
-import MovieCard from "../components/MovieCard";
-import ProfileSettingsModal from "../components/ProfileSettingsModal";
-import { movies, photo } from "../data";
-import { useCollection } from "../lib/collectionStore";
-import { useProfile } from "../lib/profileStore";
-import type { Movie, Profile, Status } from "../types/movie";
-import { useAuth } from "../lib/authStore";
-import { collectionKeyFor, movieRouteId } from "../data/tmdbIds";
-import { profileApi } from "../services/profileApi";
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { AnimatePresence, motion } from 'framer-motion'
+import { ArrowLeft, ArrowRight, Check, Film, Globe2, Share2 } from 'lucide-react'
+import Header from '../components/Header'
+import Footer from '../components/Footer'
+import MovieCard from '../components/MovieCard'
+import { useAuth } from '../lib/authStore'
+import { useCollection } from '../lib/collectionStore'
+import { profileApi } from '../services/profileApi'
+import type { Movie, Status } from '../types/movie'
+
+type ProfileMovie = { movie: Movie; status: Status }
 
 export default function Profile() {
-  const navigate = useNavigate();
-  const { username = "alexmorgan" } = useParams();
-  const { profile, update } = useProfile();
-  const { collection, libraryMovies, setStatus } = useCollection();
-  const { user, accessToken } = useAuth();
-  const [tab, setTab] = useState<Status>("watched");
-  const [sort, setSort] = useState("Recently added");
-  const [settings, setSettings] = useState(false);
-  const [toast, setToast] = useState("");
-  const [remoteProfile, setRemoteProfile] = useState<{ name: string; username: string } | null>(null);
-  const [remoteMovies, setRemoteMovies] = useState<Array<{ movie: Movie; status: Status }>>([]);
-  const isRemoteId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(username);
-  const isOwner = username === profile.username || user?.publicId === username;
-  const isPublic = isRemoteId ? Boolean(accessToken) : isOwner ? profile.isPublic : username !== "privatefilmfan";
+  const navigate = useNavigate()
+  const { publicId = '' } = useParams()
+  const { user, accessToken, initialized } = useAuth()
+  const { collection, setStatus } = useCollection()
+  const [name, setName] = useState('')
+  const [entries, setEntries] = useState<ProfileMovie[]>([])
+  const [tab, setTab] = useState<Status>('watched')
+  const [sort, setSort] = useState('Recently added')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [toast, setToast] = useState('')
+  const isOwner = user?.publicId === publicId
+
   useEffect(() => {
-    if (!isRemoteId || !accessToken) return;
-    let active = true;
-    void Promise.all([profileApi.get(accessToken, username), profileApi.listMovies(accessToken, username)])
-      .then(([apiProfile, entries]) => {
-        if (!active) return;
-        setRemoteProfile({ name: apiProfile.displayName, username: apiProfile.publicId });
-        setRemoteMovies(entries);
-      })
-      .catch((error) => console.error("Could not load the API profile.", error));
-    return () => { active = false };
-  }, [accessToken, isRemoteId, username]);
-  const visitor =
-    username === "cinemajules"
-      ? {
-          name: "Jules Rivera",
-          username,
-          bio: "Finding beauty in the frame. Documentary devotee and midnight movie person.",
-          avatar: photo("photo-1531123897727-8f129e1688ce", 240),
-          cover: photo("photo-1470252649378-9c29740c9fa8", 1600),
-        }
-      : remoteProfile
-        ? { ...profile, name: remoteProfile.name, username: remoteProfile.username }
-        : user && isOwner
-          ? { ...profile, name: user.displayName, username: user.publicId }
-          : profile;
-  const ids = isRemoteId
-    ? remoteMovies.filter((entry) => entry.status === tab).map((entry) => entry.movie)
-    : Object.entries(collection)
-    .filter(([, s]) => s === tab)
-    .map(([id]) => libraryMovies[id] ?? movies.find((m) => collectionKeyFor(m.id) === id))
-    .filter((m): m is Movie => !!m);
-  const sorted = [...ids].sort((a, b) =>
-    sort === "Title A–Z"
-      ? a.title.localeCompare(b.title)
-      : sort === "Release year"
-        ? b.year - a.year
-        : sort === "Highest rated"
-          ? Number(b.rating) - Number(a.rating)
-          : 0,
-  );
-  const visibleStatuses = isRemoteId ? remoteMovies.map((entry) => entry.status) : Object.values(collection);
-  const watchedCount = visibleStatuses.filter((status) => status === "watched").length;
-  const plannedCount = visibleStatuses.filter((status) => status === "planned").length;
-  const share = async () => {
-    const url = `${location.origin}/u/${username}`;
-    try {
-      await navigator.clipboard.writeText(url);
-    } catch {
-      const el = document.createElement("textarea");
-      el.value = url;
-      document.body.append(el);
-      el.select();
-      document.execCommand("copy");
-      el.remove();
+    if (!initialized) return
+    if (!accessToken) {
+      navigate('/login', { replace: true })
+      return
     }
-    setToast("Profile link copied");
-    window.setTimeout(() => setToast(""), 2400);
-  };
-  const changeProfile = (next: Profile) => update(next);
-  return (
-    <div className="app-shell">
-      <Header />
-      <main className="profile-page">
-        <button
-          className="back-link"
-          onClick={() =>
-            history.length > 1 ? history.back() : location.assign("/")
-          }
-        >
-          <ArrowLeft size={15} /> Back to discovery
-        </button>
-        <section
-          className="profile-cover"
-          style={{
-            backgroundImage: `linear-gradient(90deg,rgba(8,9,13,.34),rgba(8,9,13,.05)),url(${visitor.cover || profile.cover})`,
-          }}
-        >
-          <span className="cover-label">A PERSONAL FILM ARCHIVE</span>
+    let active = true
+    setLoading(true)
+    setError('')
+    void Promise.all([profileApi.get(accessToken, publicId), profileApi.listMovies(accessToken, publicId)])
+      .then(([profile, movies]) => {
+        if (!active) return
+        setName(profile.displayName)
+        setEntries(movies)
+      })
+      .catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : 'Could not load this profile.') })
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [accessToken, initialized, navigate, publicId])
+
+  const visibleEntries = entries.filter((entry) => entry.status === tab)
+  const sorted = useMemo(() => [...visibleEntries].sort((a, b) =>
+    sort === 'Title A–Z' ? a.movie.title.localeCompare(b.movie.title)
+      : sort === 'Release year' ? b.movie.year - a.movie.year
+        : sort === 'Highest rated' ? Number(b.movie.rating) - Number(a.movie.rating)
+          : 0,
+  ), [visibleEntries, sort])
+  const watchedCount = entries.filter((entry) => entry.status === 'watched').length
+  const plannedCount = entries.filter((entry) => entry.status === 'planned').length
+
+  const share = async () => {
+    const url = `${location.origin}/u/${publicId}`
+    try { await navigator.clipboard.writeText(url) }
+    catch {
+      const field = document.createElement('textarea')
+      field.value = url
+      document.body.append(field)
+      field.select()
+      document.execCommand('copy')
+      field.remove()
+    }
+    setToast('Profile link copied')
+    window.setTimeout(() => setToast(''), 2400)
+  }
+
+  return <div className="app-shell">
+    <Header />
+    <main className="profile-page">
+      <button className="back-link" onClick={() => navigate('/')}><ArrowLeft size={15} /> Back to discovery</button>
+      <section className="profile-cover api-profile-cover"><span className="cover-label">A PERSONAL FILM ARCHIVE</span></section>
+      <section className="profile-intro">
+        <div className="profile-avatar api-profile-avatar" aria-hidden="true">{name.slice(0, 1).toUpperCase() || '•'}</div>
+        <div className="profile-identity"><div className="identity-top"><h1>{name || 'Film archive'}</h1><span className="public-tag"><Globe2 size={12} /> API PROFILE</span></div><span className="username">MEMBER ID · {publicId.slice(0, 8)}</span><p>{isOwner ? 'Your collection, synced with the Watch List API.' : 'A film collection shared through Watch List.'}</p><span className="joined">WATCH LIST MEMBER</span></div>
+        <div className="profile-actions"><button className="button button-outline" onClick={share}><Share2 size={15} /> Share profile</button></div>
+      </section>
+      {loading || !initialized ? <div className="empty-state"><Film size={26} /><b>Loading profile from the API…</b></div> : error ? <div className="private-state"><div className="lock-icon"><Film size={23} /></div><span className="eyebrow muted">PROFILE / API</span><h2>Could not load this profile.</h2><p>{error}</p><button className="text-link" onClick={() => window.location.reload()}>Try again <ArrowRight size={15} /></button></div> : <>
+        <div className="profile-stats"><div><strong>{String(watchedCount).padStart(2, '0')}</strong><span>FILMS WATCHED</span></div><div><strong>{String(plannedCount).padStart(2, '0')}</strong><span>ON THE WATCHLIST</span></div><div className="stats-note">“Some films don&apos;t end<br />when the credits roll.”</div></div>
+        <section className="profile-library"><div className="library-header"><div className="profile-tabs"><button className={tab === 'watched' ? 'profile-tab active' : 'profile-tab'} onClick={() => setTab('watched')}>Watched <span>{watchedCount}</span></button><button className={tab === 'planned' ? 'profile-tab active' : 'profile-tab'} onClick={() => setTab('planned')}>Plan to watch <span>{plannedCount}</span></button></div><select value={sort} onChange={(event) => setSort(event.target.value)} aria-label="Sort films"><option>Recently added</option><option>Title A–Z</option><option>Release year</option><option>Highest rated</option></select></div>
+          {sorted.length ? <div className="poster-grid">{sorted.map(({ movie }) => <MovieCard key={movie.id} movie={movie} status={collection[movie.id]} onSelect={(selected) => navigate(`/movie/${selected.id}`)} onAdd={(id, next, selected) => { void setStatus(id, collection[id] === next ? null : next, selected) }} />)}</div> : <div className="empty-state"><Film size={26} /><b>No films here just yet</b><span>{isOwner ? 'Add films from Discover to see them in your archive.' : 'This profile has no films in this section.'}</span><Link to="/" className="text-link">Explore films <ArrowRight size={15} /></Link></div>}
         </section>
-        <section className="profile-intro">
-          <img
-            className="profile-avatar"
-            src={visitor.avatar}
-            alt={`${visitor.name} avatar`}
-          />
-          <div className="profile-identity">
-            <div className="identity-top">
-              <h1>{visitor.name}</h1>
-              {isPublic && (
-                <span className="public-tag">
-                  <Globe2 size={12} /> PUBLIC
-                </span>
-              )}
-            </div>
-            <span className="username">{isRemoteId ? `MEMBER ID · ${username.slice(0, 8)}` : `@${visitor.username}`}</span>
-            <p>{visitor.bio}</p>
-            <span className="joined">{isRemoteId ? "WATCH LIST MEMBER" : "MEMBER SINCE OCTOBER 2022"}</span>
-          </div>
-          <div className="profile-actions">
-            <button className="button button-outline" onClick={share}>
-              <Share2 size={15} /> Share profile
-            </button>
-            {isOwner && !user && (
-              <button
-                className="icon-button"
-                onClick={() => setSettings(true)}
-                aria-label="Edit profile"
-              >
-                <Settings2 size={17} />
-              </button>
-            )}
-          </div>
-        </section>
-        {!isPublic ? (
-          <div className="private-state">
-            <div className="lock-icon">
-              <LockKeyhole size={23} />
-            </div>
-            <span className="eyebrow muted">{isRemoteId ? "MEMBER PROFILE" : "A LITTLE PRIVACY"}</span>
-            <h2>{isRemoteId ? "Sign in to view this profile." : "This collection is private."}</h2>
-            <p>{isRemoteId ? "Profile access is available to signed-in members." : `${visitor.name} keeps their film list to themselves.`}</p>
-            {isRemoteId && <Link to="/login" className="button button-light">Sign in <ArrowRight size={15}/></Link>}
-          </div>
-        ) : (
-          <>
-            <div className="profile-stats">
-              <div>
-                <strong>
-                  {watchedCount.toString()
-                    .padStart(2, "0")}
-                </strong>
-                <span>FILMS WATCHED</span>
-              </div>
-              <div>
-                <strong>
-                  {plannedCount.toString()
-                    .padStart(2, "0")}
-                </strong>
-                <span>ON THE WATCHLIST</span>
-              </div>
-              <div className="stats-note">
-                “Some films don&apos;t end
-                <br />
-                when the credits roll.”
-              </div>
-            </div>
-            <section className="profile-library">
-              <div className="library-header">
-                <div className="profile-tabs">
-                  <button
-                    className={
-                      tab === "watched" ? "profile-tab active" : "profile-tab"
-                    }
-                    onClick={() => setTab("watched")}
-                  >
-                    Watched{" "}
-                    <span>
-                      {
-                        watchedCount
-                      }
-                    </span>
-                  </button>
-                  <button
-                    className={
-                      tab === "planned" ? "profile-tab active" : "profile-tab"
-                    }
-                    onClick={() => setTab("planned")}
-                  >
-                    Plan to watch{" "}
-                    <span>
-                      {
-                        plannedCount
-                      }
-                    </span>
-                  </button>
-                </div>
-                <select
-                  value={sort}
-                  onChange={(e) => setSort(e.target.value)}
-                  aria-label="Sort films"
-                >
-                  <option>Recently added</option>
-                  <option>Title A–Z</option>
-                  <option>Release year</option>
-                  <option>Highest rated</option>
-                </select>
-              </div>
-              {sorted.length ? (
-                <div className="poster-grid">
-                  {sorted.map((m) => (
-                    <MovieCard
-                      key={m.id}
-                      movie={m}
-                      status={collection[collectionKeyFor(m.id)]}
-                      onSelect={(movie) => navigate(`/movie/${movieRouteId(movie.id)}`)}
-                      onAdd={(id, s, movie) => {
-                        const key = collectionKeyFor(id);
-                        void setStatus(id, collection[key] === s ? null : s, movie);
-                      }}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="empty-state">
-                  <Film size={26} />
-                  <b>No films here just yet</b>
-                  <span>
-                    Once you add a film, it will find its place in this
-                    collection.
-                  </span>
-                  <Link to="/" className="text-link">
-                    Explore films <ArrowRight size={15} />
-                  </Link>
-                </div>
-              )}
-            </section>
-          </>
-        )}
-      </main>
-      <Footer />
-      <AnimatePresence>
-        {toast && (
-          <motion.div
-            className="toast"
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-          >
-            <Check size={15} />
-            {toast}
-          </motion.div>
-        )}
-      </AnimatePresence>
-      {settings && (
-        <ProfileSettingsModal
-          onClose={() => setSettings(false)}
-          onSave={changeProfile}
-          profile={profile}
-        />
-      )}
-    </div>
-  );
+      </>}
+    </main>
+    <Footer />
+    <AnimatePresence>{toast && <motion.div className="toast" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}><Check size={15} />{toast}</motion.div>}</AnimatePresence>
+  </div>
 }

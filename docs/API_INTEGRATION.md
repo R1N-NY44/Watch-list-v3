@@ -48,10 +48,11 @@ For request/response fields and status codes, see the backend's
 - Similar movie previews are normalized for the detail page.
 - Backend `plan_to_watch` maps to the frontend's `planned` status and back.
 
-`src/data/tmdbIds.ts` maps the existing sample catalog slugs to their TMDB IDs, so seeded
-Discover cards can request live detail data and can be saved to a real account. The sample
-catalog remains available for curated rails/sections and as a fallback when movie search or
-details cannot reach the API. Trending uses backend recommendations when available.
+Discover cards, search results, hero selections, and movie detail pages all use API movie IDs.
+The hero displays the first five picks from the For You API-derived selection. For You is
+shuffled from the recommendation response; Trending keeps the backend order; Hidden Gems sorts
+that same API response by lower vote count. There is no bundled sample movie catalog or local
+fallback: API errors are shown in the relevant section.
 
 ## Authentication and collection behavior
 
@@ -61,12 +62,12 @@ requests include credentials so the browser can send the HttpOnly refresh cookie
 authenticated request attempts one refresh and retries once.
 
 Library actions are optimistic. A failed API update rolls back the visible collection and emits
-an API error event. Guests retain the sample/local collection behavior; signing in loads the
-account's server collection and replaces that view.
+an API error event. A guest action sends the user to sign in. The collection starts empty until
+the server library is loaded; no collection or profile data is written to browser storage.
 
 Registration enforces the backend's 15-character minimum password in the form. The profile API
 currently exposes `publicId` and `displayName`, but does not provide a profile-update endpoint;
-profile editing remains local until the backend offers one. The backend profile routes require
+profile editing is unavailable until the backend offers one. The backend profile routes require
 authentication, so a profile UUID link prompts guests to sign in.
 
 ## Deployment requirements

@@ -13,6 +13,7 @@ export interface Movie {
   year: number
   genre: string
   rating: string
+  voteCount?: number
   poster: string
   backdrop: string
   description: string

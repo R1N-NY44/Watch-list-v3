@@ -2,16 +2,15 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { ArrowLeft, ArrowRight, Bookmark, CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, Globe2, Plus, Share2, Star, X } from 'lucide-react'
-import type { MovieDetail, Status } from '../types/movie'
+import type { Movie, MovieDetail, Status } from '../types/movie'
 
 type MovieDetailPageProps = {
   movie?: MovieDetail
-  movies: MovieDetail[]
   status?: Status
   onSetStatus: (id: string, status: Status | null) => void
 }
 
-export default function MovieDetailPage({ movie, movies, status, onSetStatus }: MovieDetailPageProps) {
+export default function MovieDetailPage({ movie, status, onSetStatus }: MovieDetailPageProps) {
   const navigate = useNavigate()
   const [activeImage, setActiveImage] = useState<number | null>(null)
   const [toast, setToast] = useState('')
@@ -28,16 +27,7 @@ export default function MovieDetailPage({ movie, movies, status, onSetStatus }: 
     return () => { document.title = 'Watch List — Your cinematic archive' }
   }, [movie])
 
-  const recommendations = useMemo(() => {
-    if (!movie) return []
-    const apiPreferred = movie.similarMovies ?? []
-    const preferred = apiPreferred.length
-      ? apiPreferred
-      : movie.similarMovieIds?.map((id) => movies.find((item) => item.id === id)).filter((item): item is MovieDetail => Boolean(item)) ?? []
-    const genres = movie.genre.toLowerCase().split(' · ').filter(Boolean)
-    const byGenre = movies.filter((item) => item.id !== movie.id && item.genre.toLowerCase().split(' · ').some((genre) => genres.includes(genre)))
-    return [...preferred, ...byGenre.filter((item) => !preferred.some((match) => match.id === item.id))].slice(0, 4)
-  }, [movie, movies])
+  const recommendations = useMemo<Movie[]>(() => movie?.similarMovies?.slice(0, 4) ?? [], [movie])
 
   if (!movie) {
     return <main className="detail-not-found"><span className="eyebrow">THE ARCHIVE / 404</span><h1>This film slipped<br /><em>out of frame.</em></h1><Link className="button button-light" to="/">Return to the archive <ArrowRight size={16} /></Link></main>
@@ -181,7 +171,7 @@ function ImageLightbox({ images, initialIndex, title, onClose }: { images: strin
   return <motion.div className="lightbox-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onMouseDown={onClose} role="dialog" aria-modal="true" aria-label={`${title} gallery`}><button className="lightbox-close" onClick={onClose} aria-label="Close image viewer"><X size={20} /></button><button className="lightbox-arrow lightbox-previous" onClick={(event) => { event.stopPropagation(); previous() }} aria-label="Previous image"><ChevronLeft size={23} /></button><figure className="lightbox-figure" onMouseDown={(event) => event.stopPropagation()}><img src={images[index]} alt={`${title} still ${index + 1} of ${images.length}`} /><figcaption><span>{title.toUpperCase()}</span><span>{String(index + 1).padStart(2, '0')} / {String(images.length).padStart(2, '0')}</span></figcaption></figure><button className="lightbox-arrow lightbox-next" onClick={(event) => { event.stopPropagation(); next() }} aria-label="Next image"><ChevronRight size={23} /></button></motion.div>
 }
 
-function SimilarMovies({ movies }: { movies: MovieDetail[] }) {
+function SimilarMovies({ movies }: { movies: Movie[] }) {
   return <section className="similar-section"><div className="detail-section-heading similar-heading"><div><span className="eyebrow">04 / KEEP EXPLORING</span><h2>More like <em>this.</em></h2></div><span className="gallery-count">CURATED BY SHARED GENRES</span></div><div className="similar-grid">{movies.map((movie, index) => <Link className="similar-card" to={`/movie/${movie.id}`} key={movie.id}><div className="similar-image"><img src={movie.poster} alt={`${movie.title} poster`} loading="lazy" /><span className="similar-index">0{index + 1}</span><span className="similar-arrow"><ArrowRight size={16} /></span></div><span className="similar-title">{movie.title}</span><span className="similar-meta">{movie.year} <i /> {movie.genre.split(' · ')[0]}</span></Link>)}</div></section>
 }
 

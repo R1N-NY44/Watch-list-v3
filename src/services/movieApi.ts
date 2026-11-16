@@ -8,7 +8,7 @@ const yearOf = (date: string | null | undefined) => date ? Number(date.slice(0, 
 export function mapMovieSummary(dto: MovieSummaryDto): Movie {
   return {
     id: String(dto.tmdbId), title: dto.title, year: yearOf(dto.releaseDate),
-    genre: 'Film', rating: Number(dto.voteAverage || 0).toFixed(1),
+    genre: 'Film', rating: Number(dto.voteAverage || 0).toFixed(1), voteCount: dto.voteCount,
     poster: imageUrl(dto.posterPath), backdrop: imageUrl(dto.backdropPath),
     description: dto.overview || 'No synopsis is available yet.',
   }
@@ -24,7 +24,7 @@ export function mapMovieDetail(dto: MovieDetailDto): MovieDetail {
     ? [...(dto.gallery.backdrops ?? []), ...(dto.gallery.posters ?? [])].map((path) => imageUrl(path)).filter(Boolean)
     : []
   return {
-    ...base, genre: dto.genre || 'Film', originalTitle: dto.originalTitle || undefined, tagline: dto.tagline || undefined,
+    ...base, year: dto.year ?? base.year, genre: dto.genre || 'Film', originalTitle: dto.originalTitle || undefined, tagline: dto.tagline || undefined,
     runtime: dto.runtime || undefined, releaseDate: dto.releaseDate || undefined,
     originalLanguage: dto.originalLanguage || undefined, country: dto.country ?? [],
     director: dto.director || undefined, writers: dto.writers ?? [], producers: dto.producers ?? [],

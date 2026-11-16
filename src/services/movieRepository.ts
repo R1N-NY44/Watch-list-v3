@@ -1,28 +1,16 @@
-import { movies } from '../data/movie'
-import type { MovieDetail } from '../types/movie'
+import type { Movie, MovieDetail } from '../types/movie'
 import { movieApi } from './movieApi'
-import { tmdbIdFor } from '../data/tmdbIds'
 
-/** Central data boundary: remote API first, local sample catalog as a resilient fallback. */
+/** API-only catalog boundary used by discovery, search, and detail routes. */
 export const movieRepository = {
-  getAll(): MovieDetail[] {
-    return movies
+  search(query: string, page = 1): Promise<Movie[]> {
+    return movieApi.search(query, page)
   },
-  getById(id: string): MovieDetail | undefined {
-    return movies.find((movie) => movie.id === id)
-  },
-  async getByIdAsync(id: string): Promise<MovieDetail | undefined> {
-    const apiId = tmdbIdFor(id)
-    if (apiId) {
-      try { return await movieApi.getById(apiId) } catch (error) { console.warn('Using sample movie data after API detail request failed.', error) }
+  getById(tmdbId: string | number): Promise<MovieDetail> {
+    const numericId = Number(tmdbId)
+    if (!Number.isSafeInteger(numericId) || numericId <= 0) {
+      return Promise.reject(new Error('This movie does not have a valid TMDB ID.'))
     }
-    return movies.find((movie) => movie.id === id || String(tmdbIdFor(movie.id)) === id)
-  },
-  async search(query: string): Promise<MovieDetail[]> {
-    try { return await movieApi.search(query) } catch (error) {
-      console.warn('Using sample search results after API search failed.', error)
-      const normalized = query.trim().toLocaleLowerCase()
-      return movies.filter((movie) => `${movie.title} ${movie.originalTitle ?? ''} ${movie.year} ${movie.genre}`.toLocaleLowerCase().includes(normalized))
-    }
+    return movieApi.getById(numericId)
   },
 }
