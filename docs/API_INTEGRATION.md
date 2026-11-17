@@ -30,6 +30,7 @@ responses into `ApiError` values.
 | Sign out | `POST /auth/logout` | Refresh cookie |
 | Load/add/update/remove collection | `GET/POST /library`, `PATCH/DELETE /library/{tmdbId}` | Bearer |
 | View profile and profile movies | `GET /profiles/{publicId}` and `/movies` | Bearer |
+| Toggle own profile visibility | `PATCH /profiles/{publicId}/visibility` (no request body) | Bearer |
 
 For request/response fields and status codes, see the backend's
 [`docs/openapi.yaml`](https://github.com/itsrmdhnaz/WatchList_Backend/blob/master/docs/openapi.yaml).
@@ -65,10 +66,11 @@ Library actions are optimistic. A failed API update rolls back the visible colle
 an API error event. A guest action sends the user to sign in. The collection starts empty until
 the server library is loaded; no collection or profile data is written to browser storage.
 
-Registration enforces the backend's 15-character minimum password in the form. The profile API
-currently exposes `publicId` and `displayName`, but does not provide a profile-update endpoint;
-profile editing is unavailable until the backend offers one. The backend profile routes require
-authentication, so a profile UUID link prompts guests to sign in.
+Registration enforces the backend's 15-character minimum password in the form. Profile visibility
+is loaded from the profile API and can be changed by its owner through the visibility endpoint.
+Other profile fields (such as display name and avatar) remain read-only because no profile-edit
+endpoint is integrated. The backend profile routes require authentication, so a profile UUID link
+prompts guests to sign in.
 
 ## Deployment requirements
 

@@ -308,6 +308,8 @@
 .api-error-toast{z-index:140;border-color:rgba(255,107,107,.35);background:#241519;color:#ffc1c1}
 .api-profile-cover{background-size:cover;background-position:center 43%;}
 .api-profile-avatar{display:block;object-fit:cover;background:#171820}
+.visibility-button:disabled{opacity:.6;cursor:wait}
+@media(max-width:620px){.profile-actions .visibility-button{width:auto;padding:0 9px;gap:7px;font-size:8px}.visibility-button .switch{flex:none;width:30px;height:18px}.visibility-button .switch i{width:12px;height:12px}.visibility-button .switch.on i{transform:translateX(12px)}}
 .detail-hero-inner {
   grid-template-columns: minmax(170px, 232px) minmax(0, 1fr);
   gap: clamp(32px, 6vw, 84px);

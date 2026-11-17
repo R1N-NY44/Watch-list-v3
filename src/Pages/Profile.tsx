@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
-import { ArrowLeft, ArrowRight, Check, Film, Globe2, Share2 } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, Film, Globe2, LockKeyhole, Share2 } from 'lucide-react'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import MovieCard from '../components/MovieCard'
@@ -19,12 +19,14 @@ export default function Profile() {
   const { user, accessToken, initialized } = useAuth()
   const { collection, setStatus } = useCollection()
   const [name, setName] = useState('')
+  const [visibility, setVisibility] = useState<'public' | 'private'>('public')
   const [entries, setEntries] = useState<ProfileMovie[]>([])
   const [tab, setTab] = useState<Status>('watched')
   const [sort, setSort] = useState('Recently added')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [toast, setToast] = useState('')
+  const [visibilitySaving, setVisibilitySaving] = useState(false)
   const isOwner = user?.publicId === publicId
 
   useEffect(() => {
@@ -36,16 +38,21 @@ export default function Profile() {
     let active = true
     setLoading(true)
     setError('')
-    void Promise.all([profileApi.get(accessToken, publicId), profileApi.listMovies(accessToken, publicId)])
-      .then(([profile, movies]) => {
+    void profileApi.get(accessToken, publicId)
+      .then(async (profile) => {
         if (!active) return
         setName(profile.displayName)
-        setEntries(movies)
+        const nextVisibility = profile.visibility === 'private' ? 'private' : 'public'
+        setVisibility(nextVisibility)
+        const movies = nextVisibility === 'public' || user?.publicId === publicId
+          ? await profileApi.listMovies(accessToken, publicId)
+          : []
+        if (active) setEntries(movies)
       })
       .catch((cause) => { if (active) setError(cause instanceof Error ? cause.message : 'Could not load this profile.') })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
-  }, [accessToken, initialized, navigate, publicId])
+  }, [accessToken, initialized, navigate, publicId, user?.publicId])
 
   const visibleEntries = entries.filter((entry) => entry.status === tab)
   const sorted = useMemo(() => [...visibleEntries].sort((a, b) =>
@@ -72,6 +79,23 @@ export default function Profile() {
     window.setTimeout(() => setToast(''), 2400)
   }
 
+  const toggleVisibility = async () => {
+    if (!accessToken || !isOwner || visibilitySaving) return
+    const nextVisibility = visibility === 'public' ? 'private' : 'public'
+    setVisibilitySaving(true)
+    try {
+      await profileApi.toggleVisibility(accessToken, publicId)
+      setVisibility(nextVisibility)
+      setToast(`Profile is now ${nextVisibility}`)
+      window.setTimeout(() => setToast(''), 2400)
+    } catch (cause) {
+      setToast(cause instanceof Error ? cause.message : 'Could not update profile visibility.')
+      window.setTimeout(() => setToast(''), 3600)
+    } finally {
+      setVisibilitySaving(false)
+    }
+  }
+
   return <div className="app-shell">
     <Header />
     <main className="profile-page">
@@ -79,10 +103,10 @@ export default function Profile() {
       <section className="profile-cover api-profile-cover" style={{ backgroundImage: `linear-gradient(90deg, rgba(8,9,13,.72), rgba(8,9,13,.08)), url("${defaultProfileBanner}")` }}><span className="cover-label">A PERSONAL FILM ARCHIVE</span></section>
       <section className="profile-intro">
         <img className="profile-avatar api-profile-avatar" src={defaultProfileAvatar} alt="" />
-        <div className="profile-identity"><div className="identity-top"><h1>{name || 'Film archive'}</h1><span className="public-tag"><Globe2 size={12} /> API PROFILE</span></div><span className="username">MEMBER ID · {publicId.slice(0, 8)}</span><p>{isOwner ? 'Your collection, synced with the Watch List API.' : 'A film collection shared through Watch List.'}</p><span className="joined">WATCH LIST MEMBER</span></div>
-        <div className="profile-actions"><button className="button button-outline" onClick={share}><Share2 size={15} /> Share profile</button></div>
+        <div className="profile-identity"><div className="identity-top"><h1>{name || 'Film archive'}</h1><span className="public-tag">{visibility === 'public' ? <Globe2 size={12} /> : <LockKeyhole size={12} />} {visibility.toUpperCase()}</span></div><span className="username">MEMBER ID · {publicId.slice(0, 8)}</span><p>{isOwner ? 'Your collection, synced with the Watch List API.' : 'A film collection shared through Watch List.'}</p><span className="joined">WATCH LIST MEMBER</span></div>
+        <div className="profile-actions"><button className="button button-outline" onClick={share}><Share2 size={15} /> Share profile</button>{isOwner && <button className="button button-outline visibility-button" onClick={() => void toggleVisibility()} disabled={visibilitySaving}><span className={`switch ${visibility === 'public' ? 'on' : ''}`}><i /></span>{visibilitySaving ? 'Saving…' : visibility === 'public' ? 'Make private' : 'Make public'}</button>}</div>
       </section>
-      {loading || !initialized ? <div className="empty-state"><Film size={26} /><b>Loading profile from the API…</b></div> : error ? <div className="private-state"><div className="lock-icon"><Film size={23} /></div><span className="eyebrow muted">PROFILE / API</span><h2>Could not load this profile.</h2><p>{error}</p><button className="text-link" onClick={() => window.location.reload()}>Try again <ArrowRight size={15} /></button></div> : <>
+      {loading || !initialized ? <div className="empty-state"><Film size={26} /><b>Loading profile from the API…</b></div> : error ? <div className="private-state"><div className="lock-icon"><Film size={23} /></div><span className="eyebrow muted">PROFILE / API</span><h2>Could not load this profile.</h2><p>{error}</p><button className="text-link" onClick={() => window.location.reload()}>Try again <ArrowRight size={15} /></button></div> : visibility === 'private' && !isOwner ? <div className="private-state"><div className="lock-icon"><LockKeyhole size={23} /></div><span className="eyebrow muted">A LITTLE PRIVACY</span><h2>This collection is private.</h2><p>{name} keeps their film list private.</p></div> : <>
         <div className="profile-stats"><div><strong>{String(watchedCount).padStart(2, '0')}</strong><span>FILMS WATCHED</span></div><div><strong>{String(plannedCount).padStart(2, '0')}</strong><span>ON THE WATCHLIST</span></div><div className="stats-note">“Some films don&apos;t end<br />when the credits roll.”</div></div>
         <section className="profile-library"><div className="library-header"><div className="profile-tabs"><button className={tab === 'watched' ? 'profile-tab active' : 'profile-tab'} onClick={() => setTab('watched')}>Watched <span>{watchedCount}</span></button><button className={tab === 'planned' ? 'profile-tab active' : 'profile-tab'} onClick={() => setTab('planned')}>Plan to watch <span>{plannedCount}</span></button></div><select value={sort} onChange={(event) => setSort(event.target.value)} aria-label="Sort films"><option>Recently added</option><option>Title A–Z</option><option>Release year</option><option>Highest rated</option></select></div>
           {sorted.length ? <div className="poster-grid">{sorted.map(({ movie }) => <MovieCard key={movie.id} movie={movie} status={collection[movie.id]} onSelect={(selected) => navigate(`/movie/${selected.id}`)} onAdd={(id, next, selected) => { void setStatus(id, collection[id] === next ? null : next, selected) }} />)}</div> : <div className="empty-state"><Film size={26} /><b>No films here just yet</b><span>{isOwner ? 'Add films from Discover to see them in your archive.' : 'This profile has no films in this section.'}</span><Link to="/" className="text-link">Explore films <ArrowRight size={15} /></Link></div>}

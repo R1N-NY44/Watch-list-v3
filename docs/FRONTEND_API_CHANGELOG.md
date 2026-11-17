@@ -20,6 +20,8 @@
 - Collection state now starts empty, loads from `/library`, and persists mutations through the API.
 - Guests are sent to sign in when they try to save a movie or open a profile.
 - Profile pages now load profile data and visible movies using the authenticated profile endpoints.
+- Added an owner-only public/private profile visibility toggle backed by `PATCH /profiles/{publicId}/visibility`.
+- Private profiles no longer request or display the owner's movie list to other signed-in visitors.
 - Deleted obsolete sample data, discovery ID lists, sample TMDB mappings, and the local profile modal/store.
 
 ## API integration foundation

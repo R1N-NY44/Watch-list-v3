@@ -4,9 +4,12 @@ import { authorizedRequest } from './authorizedRequest'
 import { mapMovieSummary } from './movieApi'
 
 export const profileApi = {
-  async get(token: string, publicId: string): Promise<{ publicId: string; displayName: string }> {
-    const response = await authorizedRequest<{ publicId: string; displayName: string }>(`/profiles/${publicId}`, {}, token)
+  async get(token: string, publicId: string): Promise<{ publicId: string; displayName: string; visibility: 'public' | 'private' }> {
+    const response = await authorizedRequest<{ publicId: string; displayName: string; visibility: 'public' | 'private' }>(`/profiles/${publicId}`, {}, token)
     return response.data
+  },
+  async toggleVisibility(token: string, publicId: string): Promise<void> {
+    await authorizedRequest(`/profiles/${publicId}/visibility`, { method: 'PATCH' }, token)
   },
   async listMovies(token: string, publicId: string, status?: 'watched' | 'plan_to_watch') {
     const entries: LibraryMovieDto[] = []
